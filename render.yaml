@@ -2,8 +2,7 @@ services:
   - type: web
     name: lark-mcp-agent
     env: docker
-    dockerfilePath: ./agent-api/Dockerfile
-    dockerContext: ./agent-api
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: MCP_MODE
         value: stream
