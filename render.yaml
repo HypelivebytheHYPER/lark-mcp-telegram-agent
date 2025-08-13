@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: lark-mcp-agent
+    env: docker
+    dockerfilePath: ./agent-api/Dockerfile
+    dockerContext: ./agent-api
+    envVars:
+      - key: MCP_MODE
+        value: stream
+      - key: LARK_MCP_BASE_URL
+        value: https://anycross-sg.larksuite.com/mcp/lark_base/
+      - key: LARK_MCP_STREAM_URL
+        sync: false
+      - key: BASE_LOCK
+        value: true
+      - key: LARK_ALLOWED_BASE_PREFIX
+        value: https://anycross-sg.larksuite.com/mcp/lark_base/
+      - key: LARK_ALLOWED_BASE_ID
+        value: SEkObxgDpaPZbss1T3RlHzamgac
+      - key: TABLE_MAP_JSON
+        value: '{"CLIENT - Requests":"tblxxX1koDNyEkkF","CLIENT - Profile Management":"tbl2oCDiHrNjEqSW","CORE - Main Tasks":"tblGhWiw3dzgdsfw"}'
+      - key: ALLOWED_TABLE_IDS_JSON
+        value: '["tblxxX1koDNyEkkF","tbl2oCDiHrNjEqSW","tblGhWiw3dzgdsfw"]'
+      - key: LARK_MCP_AUTH_HEADER
+        value: Authorization
+      - key: LARK_MCP_AUTH_VALUE
+        value: Bearer <ANYCROSS_KEY>
+      - key: TG_TOKEN
+        sync: false
+      - key: TG_WEBHOOK_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AGENT_JWT_SECRET
+        generateValue: true

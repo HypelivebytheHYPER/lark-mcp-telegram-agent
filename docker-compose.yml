@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  agent-api:
+    build: 
+      context: ./agent-api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    volumes:
+      - ./agent-api/app:/app/app:ro
+    networks:
+      - lark-network
+
+networks:
+  lark-network:
+    driver: bridge
