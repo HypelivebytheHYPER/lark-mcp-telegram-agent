@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import asyncio
 import json
 from .config import settings
-from .agent import run_task
+from .agent import run_task_with_greeting  # Use the new function with greeting
 from .mcp_client import get_mcp_tools
 import logging
 
@@ -12,10 +12,11 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Lark MCP Agent API", version="6.1")
+app = FastAPI(title="Lark MCP Agent API", version="6.2")
 
 class AgentRequest(BaseModel):
     prompt: str
+    chat_id: str = ""  # Add optional chat_id parameter
 
 class TelegramUpdate(BaseModel):
     update_id: int
@@ -66,7 +67,8 @@ async def mcp_config():
 @app.post("/agent/run")
 async def run_agent(request: AgentRequest):
     try:
-        result = await run_task(request.prompt)
+        # Use the new function with chat_id support
+        result = await run_task_with_greeting(request.prompt, request.chat_id)
         return {"result": result}
     except Exception as e:
         logger.error(f"Agent run failed: {e}")
@@ -85,7 +87,7 @@ async def telegram_webhook(update: TelegramUpdate, background_tasks: BackgroundT
         if not text or not chat_id:
             return {"status": "ok"}
         
-        # Process in background
+        # Process in background with chat_id
         background_tasks.add_task(process_telegram_message, chat_id, text)
         
         return {"status": "ok"}
@@ -94,13 +96,13 @@ async def telegram_webhook(update: TelegramUpdate, background_tasks: BackgroundT
         return {"status": "error", "message": str(e)}
 
 async def process_telegram_message(chat_id: int, text: str):
-    """Process telegram message in background"""
+    """Process telegram message in background with personalized greeting"""
     try:
         # Send typing indicator
         await send_telegram_message(chat_id, "กำลังประมวลผล... ⏳")
         
-        # Run agent
-        result = await run_task(text)
+        # Run agent with chat_id for personalized greeting
+        result = await run_task_with_greeting(text, str(chat_id))
         
         # Send result
         await send_telegram_message(chat_id, f"✅ เสร็จแล้ว\n\n{result}")
@@ -135,6 +137,7 @@ async def send_telegram_message(chat_id: int, text: str):
 @app.get("/")
 async def root():
     return {
-        "message": "Lark MCP Agent API v6.1", 
-        "endpoints": ["/health", "/mcp/health", "/agent/run", "/telegram/webhook"]
+        "message": "Lark MCP Agent API v6.2 with Personalized Greeting", 
+        "endpoints": ["/health", "/mcp/health", "/agent/run", "/telegram/webhook"],
+        "features": ["Staff name greeting by Chat ID", "Natural Thai responses", "Technical message filtering"]
     }
