@@ -249,7 +249,7 @@ async def build_agent(user_text: str = "", chat_id: str = ""):
     tools = await get_mcp_tools()
 
     model = ChatOpenAI(
-        model="gpt-4o",
+        model="gpt-5",
         api_key=settings.OPENAI_API_KEY,
         temperature=0.1  # Make responses more consistent
     )
