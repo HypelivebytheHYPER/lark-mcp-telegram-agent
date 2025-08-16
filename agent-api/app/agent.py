@@ -1,6 +1,6 @@
 from langgraph.prebuilt import create_react_agent
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 from .mcp_client import get_mcp_tools
 from .config import settings
 from .table_helper import resolve_table
@@ -171,6 +171,29 @@ async def get_staff_name_by_chat_id(chat_id: str) -> str:
     except Exception as e:
         return ""
 
+def extract_ai_response_only(messages) -> str:
+    """Extract only the final AI response, filtering out system messages and intermediate steps"""
+    if not messages:
+        return ""
+    
+    # Get the last AIMessage from the conversation
+    ai_responses = []
+    for msg in reversed(messages):
+        if isinstance(msg, AIMessage):
+            content = getattr(msg, "content", "")
+            if content and content.strip():
+                # Skip if it looks like a tool call or system response
+                if not any(pattern in content for pattern in [
+                    "I'll", "I will", "Let me", "I need to", "I should",
+                    "Based on", "According to", "The result", "Here's what",
+                    "tool_calls", "function_call", "mcp__", "base_id",
+                    "table_id", "app_token"
+                ]):
+                    ai_responses.append(content)
+                    break
+    
+    return ai_responses[0] if ai_responses else ""
+
 def filter_response(raw_response: str) -> str:
     """Filter out technical system messages from user-facing responses"""
     if not raw_response:
@@ -194,7 +217,17 @@ def filter_response(raw_response: str) -> str:
         "Do NOT reference other bases",
         "SystemMessage",
         "HumanMessage",
-        "AIMessage"
+        "AIMessage",
+        "I'll help you",
+        "I will search",
+        "Let me search",
+        "Based on the search",
+        "According to",
+        "The result shows",
+        "mcp__",
+        "app_token",
+        "tool_calls",
+        "function_call"
     ]
     
     for line in lines:
@@ -202,7 +235,7 @@ def filter_response(raw_response: str) -> str:
         should_skip = any(pattern in line for pattern in skip_patterns)
         
         # Skip lines that look like system messages or debug info
-        if line.strip().startswith(('System:', 'DEBUG:', 'Error:', 'Tool:', 'Human:', 'AI:')):
+        if line.strip().startswith(('System:', 'DEBUG:', 'Error:', 'Tool:', 'Human:', 'AI:', 'I\'ll', 'I will', 'Let me', 'Based on')):
             should_skip = True
             
         # Skip empty lines and lines with only technical symbols
@@ -249,7 +282,7 @@ async def build_agent(user_text: str = "", chat_id: str = ""):
     tools = await get_mcp_tools()
 
     model = ChatOpenAI(
-        model="gpt-5",
+        model="gpt-4",
         api_key=settings.OPENAI_API_KEY,
         temperature=0.1  # Make responses more consistent
     )
@@ -308,19 +341,19 @@ async def run_task(prompt: str, chat_id: str = ""):
 
     result = await agent.ainvoke({"messages": messages}, debug=False)
 
-    msgs = [getattr(m, "content", "") for m in result.get("messages", []) if getattr(m, "content", "")]
-    raw_response = "\n".join(msgs) or "(no content)"
+    # Extract only the final AI response, not intermediate steps or system messages
+    ai_response = extract_ai_response_only(result.get("messages", []))
     
     # Try to extract staff name from the response (if the agent found it)
     staff_name = ""
     # Look for patterns like "คุณ{name}" or similar
-    name_pattern = r'คุณ([^\s\!\?\.]+)'
-    name_match = re.search(name_pattern, raw_response)
+    name_pattern = r'คุณ([^\s\!\?\\.]+)'
+    name_match = re.search(name_pattern, ai_response)
     if name_match:
         staff_name = name_match.group(1)
     
     # Filter out technical messages and make response natural
-    filtered_response = filter_response(raw_response)
+    filtered_response = filter_response(ai_response)
     natural_response = make_response_natural(filtered_response, staff_name)
     
     return natural_response
