@@ -282,10 +282,14 @@ async def build_agent(user_text: str = "", chat_id: str = ""):
     tools = await get_mcp_tools()
 
     model = ChatOpenAI(
-        model="gpt-4",
-        api_key=settings.OPENAI_API_KEY,
-        temperature=0.1  # Make responses more consistent
-    )
+      model="gpt-5-mini",
+      api_key=settings.OPENAI_API_KEY,
+      temperature=0.1,  # Make responses more consistent
+      model_kwargs={
+          "reasoning_effort": "medium",  # Options: minimal, low, medium, high
+          "verbosity": "medium"          # Options: low, medium, high
+      }
+  )
 
     # Enhanced prompt with chat_id context for staff lookup
     enhanced_prompt = TASK_EXPERT_MANAGER_PROMPT
@@ -317,8 +321,30 @@ async def run_task(prompt: str, chat_id: str = ""):
     # Enhanced prompt with chat_id context and intelligent guidance
     enhanced_prompt = TASK_EXPERT_MANAGER_PROMPT
     if chat_id:
-        enhanced_prompt += f"\n\nปัจจุบันผู้ใช้มี Telegram Chat ID: {chat_id} - ใช้ MCP tools ค้นหาชื่อพนักงานที่มี ChatId = {chat_id} และทักทายด้วยชื่อจริง"
-    
+      enhanced_prompt += f"""
+
+  ขั้นตอนสำคัญ - ค้นหาชื่อพนักงาน:
+  1. ใช้ MCP tools ค้นหาใน TEAM table (table_id: tbljNtxUp5aB5ID7)
+  2. ค้นหาด้วย filter: chat_id = {chat_id}  
+  3. ดึงข้อมูล name field มา
+  4. ทักทายด้วยชื่อจริง เช่น "สวัสดีครับคุณ[ชื่อ]!"
+
+  ตัวอย่าง MCP search:
+  {{
+      "filter": {{
+          "conditions": [
+              {{
+                  "field_name": "chat_id",
+                  "operator": "is",
+                  "value": ["{chat_id}"]
+              }}
+          ],
+          "conjunction": "and"
+      }},
+      "field_names": ["name", "chat_id"],
+      "table_id": "tbljNtxUp5aB5ID7"
+  }}
+  """
     # Add intelligent table guidance based on intent analysis
     if intent_analysis["table"] and intent_analysis["confidence"] >= 2:
         enhanced_prompt += f"\n\nจากการวิเคราะห์: ควรใช้ตาราง {intent_analysis['table']} สำหรับคำขอนี้ (confidence: {intent_analysis['confidence']})"
